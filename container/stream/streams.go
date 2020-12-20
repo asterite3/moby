@@ -26,8 +26,8 @@ import (
 // a kind of "broadcaster".
 type Config struct {
 	wg        sync.WaitGroup
-	stdout    *broadcaster.Unbuffered
-	stderr    *broadcaster.Unbuffered
+	stdout    *broadcaster.BytesPipe
+	stderr    *broadcaster.BytesPipe
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
 	dio       *cio.DirectIO
@@ -37,18 +37,18 @@ type Config struct {
 // the standard err and standard out to new unbuffered broadcasters.
 func NewConfig() *Config {
 	return &Config{
-		stderr: new(broadcaster.Unbuffered),
-		stdout: new(broadcaster.Unbuffered),
+		stderr: new(broadcaster.BytesPipe),
+		stdout: new(broadcaster.BytesPipe),
 	}
 }
 
 // Stdout returns the standard output in the configuration.
-func (c *Config) Stdout() *broadcaster.Unbuffered {
+func (c *Config) Stdout() *broadcaster.BytesPipe {
 	return c.stdout
 }
 
 // Stderr returns the standard error in the configuration.
-func (c *Config) Stderr() *broadcaster.Unbuffered {
+func (c *Config) Stderr() *broadcaster.BytesPipe {
 	return c.stderr
 }
 
@@ -91,7 +91,7 @@ func (c *Config) NewNopInputPipe() {
 }
 
 // CloseStreams ensures that the configured streams are properly closed.
-func (c *Config) CloseStreams() error {
+func (c *Config) CloseStreams(ctx context.Context) error {
 	var errors []string
 
 	if c.stdin != nil {
@@ -100,11 +100,11 @@ func (c *Config) CloseStreams() error {
 		}
 	}
 
-	if err := c.stdout.Clean(); err != nil {
+	if err := c.stdout.CleanContext(ctx); err != nil {
 		errors = append(errors, fmt.Sprintf("error close stdout: %s", err))
 	}
 
-	if err := c.stderr.Clean(); err != nil {
+	if err := c.stderr.CleanContext(ctx); err != nil {
 		errors = append(errors, fmt.Sprintf("error close stderr: %s", err))
 	}
 
